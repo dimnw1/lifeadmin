@@ -84,7 +84,7 @@ def process_image_with_ai(image: Image.Image, api_key: str):
   try:
     # Отправляем фото и системный промпт модели Gemini 1.5 Flash
     response = client.models.generate_content(
-        model='gemini-1.5-flash-latest',
+        model='gemini-1.5-flash-002',
         contents=[image, 'Проанализируй этот файл и верни JSON по инструкции.'],
         config=types.GenerateContentConfig(
             system_instruction=SYSTEM_PROMPT,

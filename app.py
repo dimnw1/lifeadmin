@@ -82,9 +82,9 @@ def process_image_with_ai(image: Image.Image, api_key: str):
   client = genai.Client(api_key=api_key)
 
   try:
-    # Отправляем фото и системный промпт модели Gemini 2.5 Flash
+    # Отправляем фото и системный промпт модели Gemini 1.5 Flash
     response = client.models.generate_content(
-        model='gemini-2.5-flash',
+        model='gemini-1.5-flash',
         contents=[image, 'Проанализируй этот файл и верни JSON по инструкции.'],
         config=types.GenerateContentConfig(
             system_instruction=SYSTEM_PROMPT,

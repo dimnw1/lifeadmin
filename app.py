@@ -8,16 +8,11 @@ st.set_page_config(page_title="LifeAdmin AI", page_icon="🛡️")
 
 st.title("🛡️ LifeAdmin AI Assistant")
 
-# Отладка: проверяем, видит ли Streamlit секреты
-if "GEMINI_API_KEY" in st.secrets:
-    api_key = st.secrets["GEMINI_API_KEY"]
-    st.info(f"Ключ найден в Secrets! Длина ключа: {len(api_key)} символов. Первые символы: {api_key[:5]}...")
-else:
-    api_key = ""
-    st.warning("Внимание: GEMINI_API_KEY не найден в Streamlit Secrets!")
+# Получение ключа из Secrets
+api_key = st.secrets.get("GEMINI_API_KEY") if "GEMINI_API_KEY" in st.secrets else None
 
 if not api_key:
-    api_key = st.text_input("Введите ваш Google Gemini API Key вручную", type="password")
+    api_key = st.text_input("Введите ваш токен AQ...", type="password")
 
 uploaded_file = st.file_uploader("Выберите файл (PNG, JPG, JPEG)", type=["png", "jpg", "jpeg"])
 
@@ -27,19 +22,25 @@ if uploaded_file is not None:
     
     if st.button("🚀 Обработать документ"):
         if not api_key:
-            st.error("Пожалуйста, укажите API ключ.")
+            st.error("Пожалуйста, укажите токен.")
         else:
             try:
-                with st.spinner("Отправка запроса..."):
+                with st.spinner("Отправка запроса с новым токеном..."):
                     buffered = io.BytesIO()
                     if image.mode in ("RGBA", "P"):
                         image = image.convert("RGB")
                     image.save(buffered, format="JPEG")
                     img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
                     
-                    url = f"https://generativelanguage.googleapis.com/v1beta/gemini-1.5-flash:generateContent?key={api_key}"
+                    # Эндпоинт для работы с моделями через Bearer-токен
+                    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
                     
-                    headers = {"Content-Type": "application/json"}
+                    # Передаем токен AQ в заголовке Authorization
+                    headers = {
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json"
+                    }
+                    
                     payload = {
                         "contents": [
                             {
@@ -58,20 +59,14 @@ if uploaded_file is not None:
                     
                     response = requests.post(url, json=payload, headers=headers)
                     
-                    st.write(f"Статус ответа сервера: {response.status_code}")
-                    
-                    if response.text:
-                        try:
-                            res_json = response.json()
-                            if response.status_code == 200:
-                                text_result = res_json["candidates"][0]["content"]["parts"][0]["text"]
-                                st.success("Успешно!")
-                                st.write(text_result)
-                            else:
-                                st.error(f"Ошибка API: {res_json}")
-                        except Exception as ex:
-                            st.error(f"Не удалось распарсить JSON. Сырой ответ: {response.text}")
+                    if response.status_code == 200:
+                        res_json = response.json()
+                        text_result = res_json["candidates"][0]["content"]["parts"][0]["text"]
+                        st.success("Документ успешно обработан!")
+                        st.markdown("### Результат:")
+                        st.write(text_result)
                     else:
-                        st.error("Сервер вернул пустой ответ (пустое тело). Возможно, ключ заблокирован или неверный формат.")
+                        st.error(f"Ошибка API ({response.status_code}): {response.text}")
+                        
             except Exception as e:
                 st.error(f"Ошибка: {e}")

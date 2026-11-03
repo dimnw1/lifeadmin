@@ -1,4 +1,3 @@
-import os
 import streamlit as st
 import google.generativeai as genai
 from PIL import Image
@@ -6,9 +5,9 @@ from PIL import Image
 st.set_page_config(page_title="LifeAdmin AI", page_icon="🛡️")
 
 st.title("🛡️ LifeAdmin AI Assistant")
-st.write("Загрузите фото официального письма, чека или скриншота подписки — ИИ сам распознает документ и сохранит его.")
+st.write("Загрузите фото официального письма, чека или скриншота — ИИ распознает документ.")
 
-# Получение API ключа из Secrets или из инпута
+# Получение API ключа из Secrets
 api_key = st.secrets.get("GEMINI_API_KEY") if "GEMINI_API_KEY" in st.secrets else None
 
 if not api_key:
@@ -25,8 +24,10 @@ if uploaded_file is not None:
             st.warning("Пожалуйста, введите API ключ для продолжения.")
         else:
             try:
+                # Настраиваем конфигурацию для ключа
                 genai.configure(api_key=api_key)
-                # Используем стабильную модель для генерации контента
+                
+                # Явно запрашиваем актуальную модель без префиксов
                 model = genai.GenerativeModel('gemini-1.5-flash')
                 
                 with st.spinner("ИИ анализирует документ..."):

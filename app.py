@@ -1,18 +1,17 @@
 import streamlit as st
-import requests
-import base64
+import google.generativeai as genai
 from PIL import Image
-import io
 
 st.set_page_config(page_title="LifeAdmin AI", page_icon="🛡️")
 
 st.title("🛡️ LifeAdmin AI Assistant")
+st.write("Загрузите фото документа или чека — ИИ распознает его.")
 
-# Получение ключа из Secrets
+# Получение ключа
 api_key = st.secrets.get("GEMINI_API_KEY") if "GEMINI_API_KEY" in st.secrets else None
 
 if not api_key:
-    api_key = st.text_input("Введите ваш токен AQ...", type="password")
+    api_key = st.text_input("Введите ваш API ключ", type="password")
 
 uploaded_file = st.file_uploader("Выберите файл (PNG, JPG, JPEG)", type=["png", "jpg", "jpeg"])
 
@@ -22,51 +21,24 @@ if uploaded_file is not None:
     
     if st.button("🚀 Обработать документ"):
         if not api_key:
-            st.error("Пожалуйста, укажите токен.")
+            st.warning("Пожалуйста, укажите API ключ.")
         else:
             try:
-                with st.spinner("Отправка запроса с новым токеном..."):
-                    buffered = io.BytesIO()
-                    if image.mode in ("RGBA", "P"):
-                        image = image.convert("RGB")
-                    image.save(buffered, format="JPEG")
-                    img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+                with st.spinner("Анализ документа через Gemini..."):
+                    # Инициализация через официальную библиотеку
+                    genai.configure(api_key=api_key)
                     
-                    # Эндпоинт для работы с моделями через Bearer-токен
-                    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+                    # Используем актуальное имя модели
+                    model = genai.GenerativeModel('gemini-1.5-flash')
                     
-                    # Передаем токен AQ в заголовке Authorization
-                    headers = {
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json"
-                    }
+                    response = model.generate_content([
+                        image,
+                        "Распознай этот документ или чек. Выдели ключевые данные: категорию, дату, сумму, организацию и содержание."
+                    ])
                     
-                    payload = {
-                        "contents": [
-                            {
-                                "parts": [
-                                    {"text": "Распознай этот документ или чек. Выдели ключевые данные: категорию, дату, сумму, организацию и содержание."},
-                                    {
-                                        "inline_data": {
-                                            "mime_type": "image/jpeg",
-                                            "data": img_base64
-                                        }
-                                    }
-                                ]
-                            }
-                        ]
-                    }
+                    st.success("Документ успешно обработан!")
+                    st.markdown("### Результат:")
+                    st.write(response.text)
                     
-                    response = requests.post(url, json=payload, headers=headers)
-                    
-                    if response.status_code == 200:
-                        res_json = response.json()
-                        text_result = res_json["candidates"][0]["content"]["parts"][0]["text"]
-                        st.success("Документ успешно обработан!")
-                        st.markdown("### Результат:")
-                        st.write(text_result)
-                    else:
-                        st.error(f"Ошибка API ({response.status_code}): {response.text}")
-                        
             except Exception as e:
                 st.error(f"Ошибка: {e}")

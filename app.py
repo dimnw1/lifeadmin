@@ -7,9 +7,9 @@ import io
 st.set_page_config(page_title="LifeAdmin AI", page_icon="🛡️")
 
 st.title("🛡️ LifeAdmin AI Assistant")
-st.write("Загрузите фото официального письма, чека или скриншота — ИИ распознает документ.")
+st.write("Загрузите фото документа или чека — ИИ распознает его.")
 
-# Получение API ключа из Secrets или ввода
+# Получение API ключа
 api_key = st.secrets.get("GEMINI_API_KEY") if "GEMINI_API_KEY" in st.secrets else None
 
 if not api_key:
@@ -23,29 +23,25 @@ if uploaded_file is not None:
     
     if st.button("🚀 Обработать документ"):
         if not api_key:
-            st.warning("Пожалуйста, введите API ключ для продолжения.")
+            st.warning("Пожалуйста, введите API ключ.")
         else:
             try:
-                with st.spinner("ИИ анализирует документ через REST API..."):
-                    # Конвертируем картинку в байты в формате JPEG
+                with st.spinner("Отправка запроса в Gemini..."):
                     buffered = io.BytesIO()
                     if image.mode in ("RGBA", "P"):
                         image = image.convert("RGB")
                     image.save(buffered, format="JPEG")
                     img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
                     
-                    # Прямой REST API запрос БЕЗ слова models в пути
                     url = f"https://generativelanguage.googleapis.com/v1beta/gemini-1.5-flash:generateContent?key={api_key}"
                     
-                    headers = {
-                        "Content-Type": "application/json"
-                    }
+                    headers = {"Content-Type": "application/json"}
                     
                     payload = {
                         "contents": [
                             {
                                 "parts": [
-                                    {"text": "Распознай этот документ или чек. Выдели ключевые данные: категорию, дату, сумму, организацию и краткое содержание."},
+                                    {"text": "Распознай этот документ или чек. Выдели ключевые данные: категорию, дату, сумму, организацию и содержание."},
                                     {
                                         "inline_data": {
                                             "mime_type": "image/jpeg",
@@ -58,16 +54,28 @@ if uploaded_file is not None:
                     }
                     
                     response = requests.post(url, json=payload, headers=headers)
-                    result_json = response.json()
                     
-                    if response.status_code == 200:
-                        content_text = result_json["candidates"][0]["content"]["parts"][0]["text"]
-                        st.success("Документ успешно обработан!")
-                        st.markdown("### Результат:")
-                        st.write(content_text)
+                    # Проверяем, есть ли вообще текст в ответе
+                    if not response.text:
+                        st.error("Ошибка: Сервер Google вернул абсолютно пустой ответ. Проверьте правильность API ключа.")
                     else:
-                        error_message = result_json.get("error", {}).get("message", response.text)
-                        st.error(f"Ошибка API ({response.status_code}): {error_message}")
+                        try:
+                            result_json = response.json()
+                        except Exception:
+                            st.error(f"Ошибка: Сервер вернул не JSON. Текст ответа: {response.text}")
+                            result_json = None
                         
+                        if result_json and response.status_code == 200:
+                            try:
+                                content_text = result_json["candidates"][0]["content"]["parts"][0]["text"]
+                                st.success("Документ успешно обработан!")
+                                st.markdown("### Результат:")
+                                st.write(content_text)
+                            except (KeyError, IndexError) as ke:
+                                st.error(f"Необычный формат ответа от Google: {result_json}")
+                        elif result_json:
+                            error_message = result_json.get("error", {}).get("message", response.text)
+                            st.error(f"Ошибка API ({response.status_code}): {error_message}")
+                            
             except Exception as e:
-                st.error(f"Ошибка при обработке запроса: {e}")
+                st.error(f"Системная ошибка: {e}")

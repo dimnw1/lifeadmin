@@ -29,14 +29,13 @@ if uploaded_file is not None:
                 with st.spinner("ИИ анализирует документ через REST API..."):
                     # Конвертируем картинку в байты в формате JPEG
                     buffered = io.BytesIO()
-                    # Конвертируем в RGB на случай прозрачности в PNG
                     if image.mode in ("RGBA", "P"):
                         image = image.convert("RGB")
                     image.save(buffered, format="JPEG")
                     img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
                     
-                    # Формируем прямой REST API запрос к стабильной модели
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+                    # Прямой REST API запрос БЕЗ слова models в пути
+                    url = f"https://generativelanguage.googleapis.com/v1beta/gemini-1.5-flash:generateContent?key={api_key}"
                     
                     headers = {
                         "Content-Type": "application/json"
@@ -62,13 +61,11 @@ if uploaded_file is not None:
                     result_json = response.json()
                     
                     if response.status_code == 200:
-                        # Извлекаем текст ответа из структуры JSON
                         content_text = result_json["candidates"][0]["content"]["parts"][0]["text"]
                         st.success("Документ успешно обработан!")
                         st.markdown("### Результат:")
                         st.write(content_text)
                     else:
-                        # Показываем понятную ошибку от API, если что-то пойдет не так
                         error_message = result_json.get("error", {}).get("message", response.text)
                         st.error(f"Ошибка API ({response.status_code}): {error_message}")
                         

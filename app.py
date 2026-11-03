@@ -28,11 +28,12 @@ if uploaded_file is not None:
             response = None
             success = False
             
-            for attempt in range(3):
+            # Делаем попытки с нарастающей задержкой для обхода 503 ошибки
+            for attempt in range(4):
                 try:
-                    with st.spinner(f"Анализ документа (попытка {attempt + 1}/3)..."):
+                    with st.spinner(f"Обработка запроса моделью 3.8-flash (попытка {attempt + 1}/4)..."):
                         response = client.models.generate_content(
-                            model='gemini-2.5-flash',
+                            model='gemini-3.8-flash',
                             contents=[
                                 image,
                                 "Распознай этот документ или чек. Выдели ключевые данные: категорию, дату, сумму, организацию и содержание."
@@ -41,8 +42,9 @@ if uploaded_file is not None:
                         success = True
                         break
                 except Exception as e:
-                    if "503" in str(e) and attempt < 2:
-                        time.sleep(2)
+                    error_str = str(e)
+                    if "503" in error_str and attempt < 3:
+                        time.sleep(3 + attempt * 2)  # Увеличиваем паузу: 3 сек, 5 сек, 7 сек
                         continue
                     else:
                         st.error(f"Ошибка: {e}")

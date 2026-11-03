@@ -24,12 +24,13 @@ if uploaded_file is not None:
             st.warning("Пожалуйста, укажите API ключ.")
         else:
             try:
-                with st.spinner("Анализ документа через новый SDK..."):
-                    # Инициализация современного клиента Google GenAI
+                with st.spinner("Анализ документа..."):
+                    # Инициализация клиента
                     client = genai.Client(api_key=api_key)
                     
+                    # Используем актуальную модель из ошибки Google
                     response = client.models.generate_content(
-                        model='gemini-2.0-flash',
+                        model='gemini-3.8-flash',
                         contents=[
                             image,
                             "Распознай этот документ или чек. Выдели ключевые данные: категорию, дату, сумму, организацию и содержание."

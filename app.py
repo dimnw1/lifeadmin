@@ -1,5 +1,5 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
 from PIL import Image
 
 st.set_page_config(page_title="LifeAdmin AI", page_icon="🛡️")
@@ -7,7 +7,7 @@ st.set_page_config(page_title="LifeAdmin AI", page_icon="🛡️")
 st.title("🛡️ LifeAdmin AI Assistant")
 st.write("Загрузите фото документа или чека — ИИ распознает его.")
 
-# Получение ключа
+# Получение API ключа
 api_key = st.secrets.get("GEMINI_API_KEY") if "GEMINI_API_KEY" in st.secrets else None
 
 if not api_key:
@@ -24,17 +24,17 @@ if uploaded_file is not None:
             st.warning("Пожалуйста, укажите API ключ.")
         else:
             try:
-                with st.spinner("Анализ документа через Gemini..."):
-                    # Инициализация через официальную библиотеку
-                    genai.configure(api_key=api_key)
+                with st.spinner("Анализ документа через новый SDK..."):
+                    # Инициализация современного клиента Google GenAI
+                    client = genai.Client(api_key=api_key)
                     
-                    # Используем актуальное имя модели
-                    model = genai.GenerativeModel('gemini-1.5-flash')
-                    
-                    response = model.generate_content([
-                        image,
-                        "Распознай этот документ или чек. Выдели ключевые данные: категорию, дату, сумму, организацию и содержание."
-                    ])
+                    response = client.models.generate_content(
+                        model='gemini-2.0-flash',
+                        contents=[
+                            image,
+                            "Распознай этот документ или чек. Выдели ключевые данные: категорию, дату, сумму, организацию и содержание."
+                        ]
+                    )
                     
                     st.success("Документ успешно обработан!")
                     st.markdown("### Результат:")

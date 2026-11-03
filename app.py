@@ -7,13 +7,17 @@ import io
 st.set_page_config(page_title="LifeAdmin AI", page_icon="🛡️")
 
 st.title("🛡️ LifeAdmin AI Assistant")
-st.write("Загрузите фото документа или чека — ИИ распознает его.")
 
-# Получение API ключа
-api_key = st.secrets.get("GEMINI_API_KEY") if "GEMINI_API_KEY" in st.secrets else None
+# Отладка: проверяем, видит ли Streamlit секреты
+if "GEMINI_API_KEY" in st.secrets:
+    api_key = st.secrets["GEMINI_API_KEY"]
+    st.info(f"Ключ найден в Secrets! Длина ключа: {len(api_key)} символов. Первые символы: {api_key[:5]}...")
+else:
+    api_key = ""
+    st.warning("Внимание: GEMINI_API_KEY не найден в Streamlit Secrets!")
 
 if not api_key:
-    api_key = st.text_input("Введите ваш Google Gemini API Key", type="password")
+    api_key = st.text_input("Введите ваш Google Gemini API Key вручную", type="password")
 
 uploaded_file = st.file_uploader("Выберите файл (PNG, JPG, JPEG)", type=["png", "jpg", "jpeg"])
 
@@ -23,10 +27,10 @@ if uploaded_file is not None:
     
     if st.button("🚀 Обработать документ"):
         if not api_key:
-            st.warning("Пожалуйста, введите API ключ.")
+            st.error("Пожалуйста, укажите API ключ.")
         else:
             try:
-                with st.spinner("Отправка запроса в Gemini..."):
+                with st.spinner("Отправка запроса..."):
                     buffered = io.BytesIO()
                     if image.mode in ("RGBA", "P"):
                         image = image.convert("RGB")
@@ -36,7 +40,6 @@ if uploaded_file is not None:
                     url = f"https://generativelanguage.googleapis.com/v1beta/gemini-1.5-flash:generateContent?key={api_key}"
                     
                     headers = {"Content-Type": "application/json"}
-                    
                     payload = {
                         "contents": [
                             {
@@ -55,27 +58,20 @@ if uploaded_file is not None:
                     
                     response = requests.post(url, json=payload, headers=headers)
                     
-                    # Проверяем, есть ли вообще текст в ответе
-                    if not response.text:
-                        st.error("Ошибка: Сервер Google вернул абсолютно пустой ответ. Проверьте правильность API ключа.")
-                    else:
+                    st.write(f"Статус ответа сервера: {response.status_code}")
+                    
+                    if response.text:
                         try:
-                            result_json = response.json()
-                        except Exception:
-                            st.error(f"Ошибка: Сервер вернул не JSON. Текст ответа: {response.text}")
-                            result_json = None
-                        
-                        if result_json and response.status_code == 200:
-                            try:
-                                content_text = result_json["candidates"][0]["content"]["parts"][0]["text"]
-                                st.success("Документ успешно обработан!")
-                                st.markdown("### Результат:")
-                                st.write(content_text)
-                            except (KeyError, IndexError) as ke:
-                                st.error(f"Необычный формат ответа от Google: {result_json}")
-                        elif result_json:
-                            error_message = result_json.get("error", {}).get("message", response.text)
-                            st.error(f"Ошибка API ({response.status_code}): {error_message}")
-                            
+                            res_json = response.json()
+                            if response.status_code == 200:
+                                text_result = res_json["candidates"][0]["content"]["parts"][0]["text"]
+                                st.success("Успешно!")
+                                st.write(text_result)
+                            else:
+                                st.error(f"Ошибка API: {res_json}")
+                        except Exception as ex:
+                            st.error(f"Не удалось распарсить JSON. Сырой ответ: {response.text}")
+                    else:
+                        st.error("Сервер вернул пустой ответ (пустое тело). Возможно, ключ заблокирован или неверный формат.")
             except Exception as e:
-                st.error(f"Системная ошибка: {e}")
+                st.error(f"Ошибка: {e}")

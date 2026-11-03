@@ -1,6 +1,7 @@
 import streamlit as st
 from google import genai
 from PIL import Image
+import time
 
 st.set_page_config(page_title="LifeAdmin AI", page_icon="🛡️")
 
@@ -23,23 +24,32 @@ if uploaded_file is not None:
         if not api_key:
             st.warning("Пожалуйста, укажите API ключ.")
         else:
-            try:
-                with st.spinner("Анализ документа..."):
-                    # Инициализация клиента
-                    client = genai.Client(api_key=api_key)
-                    
-                    # Используем актуальную модель из ошибки Google
-                    response = client.models.generate_content(
-                        model='gemini-3.8-flash',
-                        contents=[
-                            image,
-                            "Распознай этот документ или чек. Выдели ключевые данные: категорию, дату, сумму, организацию и содержание."
-                        ]
-                    )
-                    
-                    st.success("Документ успешно обработан!")
-                    st.markdown("### Результат:")
-                    st.write(response.text)
-                    
-            except Exception as e:
-                st.error(f"Ошибка: {e}")
+            client = genai.Client(api_key=api_key)
+            response = None
+            success = False
+            
+            # Делаем до 3 попыток в случае ошибки 503
+            for attempt in range(3):
+                try:
+                    with st.spinner(f"Анализ документа (попытка {attempt + 1}/3)..."):
+                        response = client.models.generate_content(
+                            model='gemini-3.8-flash',
+                            contents=[
+                                image,
+                                "Распознай этот документ или чек. Выдели ключевые данные: категорию, дату, сумму, организацию и содержание."
+                            ]
+                        )
+                        success = True
+                        break
+                except Exception as e:
+                    if "503" in str(e) and attempt < 2:
+                        time.sleep(2)  # Ждем 2 секунды перед повтором
+                        continue
+                    else:
+                        st.error(f"Ошибка: {e}")
+                        break
+            
+            if success and response:
+                st.success("Документ успешно обработан!")
+                st.markdown("### Результат:")
+                st.write(response.text)
